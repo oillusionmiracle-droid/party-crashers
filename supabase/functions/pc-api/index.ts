@@ -1,0 +1,48 @@
+import { createClient } from 'npm:@supabase/supabase-js@2.99.1';
+import { createRemoteJWKSet,jwtVerify } from 'npm:jose@6.1.3';
+const ORIGIN='https://party-crashers.dinfluencerco.chatgpt.site';
+const ISSUER='https://verified-stud-5947.clerk.accounts.dev';
+const TRUSTED=[ORIGIN,'http://localhost:3000','http://127.0.0.1:3000'];
+const jwks=createRemoteJWKSet(new URL(ISSUER+'/.well-known/jwks.json'));
+const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+function headers(origin:string){return {'Content-Type':'application/json','Access-Control-Allow-Origin':TRUSTED.includes(origin)?origin:ORIGIN,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin','Cache-Control':'no-store'}}
+function json(value:unknown,status=200,origin=ORIGIN){return new Response(JSON.stringify(value),{status,headers:headers(origin)})}
+function text(v:unknown,max:number,required=false){const s=typeof v==='string'?v.trim():'';if(s.length>max||required&&!s)throw new Error('Invalid or missing field');return s}
+function http(v:unknown){const s=text(v,2000);if(!s)return '';const u=new URL(s);if(!['https:','http:'].includes(u.protocol))throw new Error('Invalid link');return u.href}
+function checked(r:{error:unknown}){if(r.error)throw new Error('Database operation failed')}
+const areaCenters:Record<string,[number,number]>={Yaba:[6.506,3.379],Ikeja:[6.601,3.35],Surulere:[6.501,3.35],VI:[6.432,3.425],Lekki:[6.448,3.473],Ajah:[6.469,3.575],Ojo:[6.458,3.187],Festac:[6.469,3.283],Mainland:[6.51,3.36]};
+Deno.serve(async req=>{const origin=req.headers.get('Origin')||ORIGIN;if(req.method==='OPTIONS')return new Response(null,{status:204,headers:headers(origin)});if(!TRUSTED.includes(origin))return json({error:'Origin not allowed'},403,origin);
+ try{
+  const u=new URL(req.url);
+  if(req.method==='GET'){
+   const near=u.searchParams.get('lat');
+   if(near){const lat=Number(near),lon=Number(u.searchParams.get('lon')),km=Math.min(100,Math.max(1,Number(u.searchParams.get('km')||15)));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw new Error('Invalid map coordinates');const r=await db.rpc('pc_nearby_events',{query_lat:lat,query_lon:lon,radius_m:km*1000});checked(r);return json({events:r.data},200,origin)}
+   let q=db.from('pc_events').select('record').eq('status','published').order('start_date').limit(250);const term=u.searchParams.get('q');if(term)q=q.textSearch('search_document',text(term,200),{type:'websearch',config:'simple'});const area=u.searchParams.get('area');if(area)q=q.eq('record->>area',text(area,100));const r=await q;checked(r);return json({events:(r.data||[]).map(x=>x.record)},200,origin)
+  }
+  if(req.method!=='POST')return json({error:'Method not allowed'},405,origin);
+  const token=req.headers.get('Authorization')?.replace(/^Bearer /i,'');if(!token)return json({error:'Sign in to continue'},401,origin);
+  let sub:string;
+  try{const {payload}=await jwtVerify(token,jwks,{issuer:ISSUER,algorithms:['RS256'],clockTolerance:5});if(!payload.sub?.startsWith('user_'))throw 0;if(payload.azp&&!TRUSTED.includes(String(payload.azp)))throw 0;sub=payload.sub}catch{return json({error:'Your session could not be verified. Please sign in again.'},401,origin)}
+  const raw=await req.text();if(raw.length>7200000)return json({error:'Request is too large'},413,origin);const body=JSON.parse(raw),action=body.action;
+  if(action==='profile.get'){const r=await db.from('pc_profiles').select('display_name,preferences').eq('clerk_user_id',sub).maybeSingle();checked(r);return json({profile:r.data},200,origin)}
+  if(action==='profile.save'){const p=body.preferences;if(!p||!Array.isArray(p.interests)||p.interests.length>30)throw new Error('Invalid preferences');const preferences={interests:p.interests.map((v:unknown)=>text(v,50)),area:text(p.area,100),campus:text(p.campus,100),complete:Boolean(p.complete)};const r=await db.from('pc_profiles').upsert({clerk_user_id:sub,display_name:text(body.name,120),preferences,updated_at:new Date().toISOString()},{onConflict:'clerk_user_id'});checked(r);return json({ok:true},200,origin)}
+  if(action==='saved.list'){const r=await db.from('pc_saved_events').select('event_id').eq('clerk_user_id',sub);checked(r);return json({ids:(r.data||[]).map(x=>x.event_id)},200,origin)}
+  if(action==='saved.set'){const eventId=text(body.eventId,200,true);const r=body.on===true?await db.from('pc_saved_events').upsert({clerk_user_id:sub,event_id:eventId},{onConflict:'clerk_user_id,event_id'}):await db.from('pc_saved_events').delete().eq('clerk_user_id',sub).eq('event_id',eventId);checked(r);return json({ok:true},200,origin)}
+  if(action==='follow.list'){const r=await db.from('pc_follows').select('organizer_id').eq('clerk_user_id',sub);checked(r);return json({ids:(r.data||[]).map(x=>x.organizer_id)},200,origin)}
+  if(action==='follow.set'){const organizerId=text(body.organizerId,200,true);const r=body.on===true?await db.from('pc_follows').upsert({clerk_user_id:sub,organizer_id:organizerId},{onConflict:'clerk_user_id,organizer_id'}):await db.from('pc_follows').delete().eq('clerk_user_id',sub).eq('organizer_id',organizerId);checked(r);return json({ok:true},200,origin)}
+  if(action==='report'){const {count,error}=await db.from('pc_reports').select('id',{count:'exact',head:true}).eq('clerk_user_id',sub).gte('created_at',new Date(Date.now()-86400000).toISOString());if(error||Number(count)>20)return json({error:'Please try again later'},429,origin);const r=await db.from('pc_reports').insert({clerk_user_id:sub,event_id:text(body.eventId,200,true),reason:text(body.reason,1000,true)});checked(r);return json({ok:true},200,origin)}
+  if(action==='registration.click'){const r=await db.from('pc_activity').insert({clerk_user_id:sub,event_id:text(body.eventId,200,true),kind:'registration_click'});checked(r);return json({ok:true},200,origin)}
+  if(action==='poster.upload'){
+   const mime=text(body.mime,50);if(!['image/jpeg','image/png','image/webp'].includes(mime))throw new Error('Choose JPG, PNG or WebP');const encoded=text(body.base64,7000000,true);const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));if(bytes.length>5242880)throw new Error('Poster must be under 5 MB');const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71,jpg=bytes[0]===255&&bytes[1]===216,webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';if(!(mime==='image/png'&&png||mime==='image/jpeg'&&jpg||mime==='image/webp'&&webp))throw new Error('Invalid image');
+   const list=await db.storage.from('pc-posters').list(sub,{limit:61});if(list.error||Number(list.data?.length)>=60)return json({error:'Poster upload limit reached'},429,origin);const name=`${sub}/${crypto.randomUUID()}.${png?'png':webp?'webp':'jpg'}`;const r=await db.storage.from('pc-posters').upload(name,bytes,{contentType:mime,upsert:false});checked(r);return json({url:db.storage.from('pc-posters').getPublicUrl(name).data.publicUrl},200,origin)
+  }
+  if(action==='event.publish'){
+   const {count,error}=await db.from('pc_events').select('id',{count:'exact',head:true}).eq('owner_id',sub).gte('created_at',new Date(Date.now()-86400000).toISOString());if(error||Number(count)>=20)return json({error:'Daily event limit reached'},429,origin);
+   const r=body.record;if(!r||typeof r!=='object')throw new Error('Invalid event');const start=new Date(r.startDate),end=new Date(r.endDate);if(!Number.isFinite(+start)||!Number.isFinite(+end)||end<start||end<new Date())throw new Error('Check event dates');if(!['physical','online','hybrid'].includes(r.format))throw new Error('Invalid format');if(!['paid','free'].includes(r.priceType))throw new Error('Invalid price type');const minimum=Number(r.minPrice);if(r.priceType==='paid'&&(!Number.isFinite(minimum)||minimum<=0))throw new Error('Check ticket price');
+   const poster=http(r.imageUrl);if(poster&&!poster.startsWith(Deno.env.get('SUPABASE_URL')!+'/storage/v1/object/public/pc-posters/'+sub+'/'))throw new Error('Upload your poster before publishing');const area=text(r.area,100),center=areaCenters[area];
+   const record={id:crypto.randomUUID(),title:text(r.title,120,true),description:text(r.description,5000,true),category:text(r.category,50,true),tags:Array.isArray(r.tags)?r.tags.slice(0,20).map((x:unknown)=>text(x,80)):[],startDate:start.toISOString(),endDate:end.toISOString(),timezone:'Africa/Lagos',format:r.format,venueName:text(r.venueName,160,r.format!=='online'),address:text(r.address,240,r.format!=='online'),area,latitude:center?.[0]??null,longitude:center?.[1]??null,venueApproximate:true,priceType:r.priceType,minPrice:r.priceType==='free'?0:minimum,currency:'NGN',registrationUrl:http(r.registrationUrl),sourceUrl:http(r.registrationUrl),sourceName:'Community submission',organizerId:sub,organizer:text(r.organizer,100,true),imageUrl:poster,registrationDeadline:r.registrationDeadline?new Date(r.registrationDeadline).toISOString():null,confidenceScore:0,firstDiscoveredAt:new Date().toISOString(),lastVerifiedAt:null,status:'published',ownerId:sub,timeConfirmed:true};
+   if(!record.registrationUrl)throw new Error('Add a registration link');const result=await db.from('pc_events').insert({id:record.id,owner_id:sub,status:'published',start_date:record.startDate,location:center?`SRID=4326;POINT(${center[1]} ${center[0]})`:null,record});checked(result);return json({event:record},200,origin)
+  }
+  return json({error:'Unknown action'},400,origin)
+ }catch(error){return json({error:error instanceof Error?error.message:'Something went wrong'},400,origin)}
+});
