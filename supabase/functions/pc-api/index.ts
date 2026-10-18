@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.99.1';
 import { createRemoteJWKSet,jwtVerify } from 'npm:jose@6.1.3';
 const ORIGIN='https://party-crashers.dinfluencerco.chatgpt.site';
 const ISSUER='https://verified-stud-5947.clerk.accounts.dev';
-const TRUSTED=[ORIGIN,'http://localhost:3000','http://127.0.0.1:3000'];
+const TRUSTED=[ORIGIN,'https://party-crashers-seven.vercel.app','https://party-crashers-oillusionmiracle-droids-projects.vercel.app','https://party-crashers-git-main-oillusionmiracle-droids-projects.vercel.app','http://localhost:3000','http://127.0.0.1:3000'];
 const jwks=createRemoteJWKSet(new URL(ISSUER+'/.well-known/jwks.json'));
 const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 function headers(origin:string){return {'Content-Type':'application/json','Access-Control-Allow-Origin':TRUSTED.includes(origin)?origin:ORIGIN,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin','Cache-Control':'no-store'}}
