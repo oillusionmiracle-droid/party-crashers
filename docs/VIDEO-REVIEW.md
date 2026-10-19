@@ -34,3 +34,11 @@ These statements describe inspected code, not a penetration-test certification. 
 ## Photo sources
 
 The full machine-readable mapping lives in `src/product/locationPhotos.ts`. The same credits and licence links appear in the app. Files are under `public/assets/places/`. All are authentic photographs, not newly generated illustrations. The interest illustrations remain decorative artwork.
+
+## Follow-up: new 1000865913.mp4 and icon correction
+
+Reviewed timestamped frames through the new 83-second recording. Its theme is social sharing that lets users express identity/achievement, illustrated by Wordle, Strava and Spotify. Dedicated downloadable event/weekly-plan share cards and native home-screen widgets are **not implemented**. Current features are ordinary event-link sharing, metadata for previews, the installable web manifest and Discover/Saved shortcuts. These are not equivalent to a native widget or a share-card system.
+
+Replaced the custom navigation paths with unmodified downloaded Tabler SVGs (MIT licence included). Reduced mobile symbols from 32px to 24px and their visual containers; touch targets remain at least 44px. Replaced the monochrome icon-library Google symbol with the official full-colour Google asset downloaded from Google's branding page. Neither change configures Google OAuth credentials.
+
+The earlier pending security work remains pending: complete request-level API throttling, verified Clerk bot/auth throttling settings, live account/authorization tests, and full browser-tested CSP. SEO metadata/headers/input checks alone do not finish all video advice.
