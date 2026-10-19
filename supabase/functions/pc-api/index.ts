@@ -16,8 +16,8 @@ Deno.serve(async req=>{const origin=req.headers.get('Origin')||ORIGIN;if(req.met
   const u=new URL(req.url);
   if(req.method==='GET'){
    const near=u.searchParams.get('lat');
-   if(near){const lat=Number(near),lon=Number(u.searchParams.get('lon')),km=Math.min(100,Math.max(1,Number(u.searchParams.get('km')||15)));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw new Error('Invalid map coordinates');const r=await db.rpc('pc_nearby_events',{query_lat:lat,query_lon:lon,radius_m:km*1000});checked(r);return json({events:r.data},200,origin)}
-   let q=db.from('pc_events').select('record').eq('status','published').order('start_date').limit(250);const term=u.searchParams.get('q');if(term)q=q.textSearch('search_document',text(term,200),{type:'websearch',config:'simple'});const area=u.searchParams.get('area');if(area)q=q.eq('record->>area',text(area,100));const r=await q;checked(r);return json({events:(r.data||[]).map(x=>x.record)},200,origin)
+   if(near!==null){const lat=Number(near),lon=Number(u.searchParams.get('lon')),km=Math.min(100,Math.max(1,Number(u.searchParams.get('km')||15)));if(u.searchParams.get('lon')===null||!Number.isFinite(km)||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw new Error('Invalid map coordinates');const r=await db.rpc('pc_nearby_events',{query_lat:lat,query_lon:lon,radius_m:km*1000});checked(r);return json({events:r.data},200,origin)}
+   let q=db.from('pc_events').select('record').eq('status','published').gte('record->>endDate',new Date().toISOString()).order('start_date').limit(250);const term=u.searchParams.get('q');if(term)q=q.textSearch('search_document',text(term,200),{type:'websearch',config:'simple'});const area=u.searchParams.get('area');if(area)q=q.eq('record->>area',text(area,100));const r=await q;checked(r);return json({events:(r.data||[]).map(x=>x.record)},200,origin)
   }
   if(req.method!=='POST')return json({error:'Method not allowed'},405,origin);
   const token=req.headers.get('Authorization')?.replace(/^Bearer /i,'');if(!token)return json({error:'Sign in to continue'},401,origin);

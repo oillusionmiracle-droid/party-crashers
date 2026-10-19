@@ -1,6 +1,6 @@
 export type ThemeMode='system'|'light'|'dark';
 export type Preferences={interests:string[];area:string;campus:string;complete:boolean};
-export type EventRecord={id:string;title:string;description:string;category:string;tags:string[];startDate:string;endDate:string;timezone:string;format:'physical'|'online'|'hybrid';venueName:string;address:string;area:string;latitude:number|null;longitude:number|null;priceType:'free'|'paid'|'unknown';minPrice:number|null;currency:string;registrationUrl:string;sourceUrl:string;sourceName:string;organizerId:string;organizer:string;imageUrl:string;registrationDeadline:string|null;confidenceScore:number;firstDiscoveredAt:string;lastVerifiedAt:string|null;status:'published'|'draft';ownerId?:string;flyerData?:string;timeConfirmed:boolean;venueApproximate?:boolean};
+export type EventRecord={id:string;title:string;description:string;category:string;tags:string[];startDate:string;endDate:string;timezone:string;format:'physical'|'online'|'hybrid';venueName:string;address:string;area:string;latitude:number|null;longitude:number|null;priceType:'free'|'paid'|'unknown';minPrice:number|null;currency:string;registrationUrl:string;sourceUrl:string;sourceName:string;organizerId:string;organizer:string;imageUrl:string;registrationDeadline:string|null;confidenceScore:number;firstDiscoveredAt:string;lastVerifiedAt:string|null;status:'published'|'draft';ownerId?:string;flyerData?:string;timeConfirmed:boolean;venueApproximate?:boolean;priceNote?:string};
 export const categories=['Tech','Startups','Business','Career','Design','Music','Parties','Gaming','Fashion','Art','Sports','Faith','Education','Food','Campus','Community'];
 export const areas=['Yaba','Ikeja','Surulere','VI','Lekki','Ajah','Ojo','Festac','Mainland','Anywhere in Lagos'];
 export const campuses=['UNILAG','LASU','YABATECH','LASUSTECH','Pan-Atlantic','Other','None'];
@@ -16,7 +16,7 @@ export function readLocal<T>(key:string,fallback:T):T{try{return JSON.parse(loca
 export function writeLocal(key:string,value:unknown){localStorage.setItem(key,JSON.stringify(value))}
 export const dateLabel=(e:EventRecord)=>new Intl.DateTimeFormat('en-NG',{day:'numeric',month:'short',timeZone:'Africa/Lagos'}).format(new Date(e.startDate));
 export const timeLabel=(e:EventRecord)=>e.timeConfirmed?new Intl.DateTimeFormat('en-NG',{hour:'numeric',minute:'2-digit',timeZone:'Africa/Lagos'}).format(new Date(e.startDate)):'Schedule on organizer site';
-export const priceLabel=(e:EventRecord)=>e.priceType==='free'?'Free':e.minPrice!=null?new Intl.NumberFormat('en-NG',{style:'currency',currency:e.currency,maximumFractionDigits:0}).format(e.minPrice):'Price on organizer site';
+export const priceLabel=(e:EventRecord)=>e.priceNote|| (e.priceType==='free'?'Free':e.minPrice!=null?new Intl.NumberFormat('en-NG',{style:'currency',currency:e.currency,maximumFractionDigits:0}).format(e.minPrice):'Price on organizer site');
 export function inFilter(e:EventRecord,filter:string,prefs:Preferences,now=new Date()):boolean{
  const start=new Date(e.startDate),end=new Date(e.endDate),dateStr=(d:Date)=>d.toLocaleDateString('en-CA',{timeZone:'Africa/Lagos'});
  if(filter==='Today')return dateStr(start)<=dateStr(now)&&dateStr(end)>=dateStr(now);
