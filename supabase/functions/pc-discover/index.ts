@@ -2,7 +2,7 @@ import {createClient} from 'npm:@supabase/supabase-js@2.99.1';
 import {allowedPage,publicUrl,sameHost} from './network.ts';
 import {jsonEvents,links,normalizeSchema,textEventDraft} from './extract.ts';
 import {searchWeb,extractPage,QUERIES} from './providers.ts';
-import {locate,duplicateScore,validateRecord} from '../pc-collect/adapters.ts';
+import {locate,reuseReviewedVenue,duplicateScore,validateRecord} from '../pc-collect/adapters.ts';
 const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const json=(d:unknown,status=200)=>new Response(JSON.stringify(d),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 function check<T extends {error:any}>(r:T):T{if(r.error)throw new Error('Discovery database operation failed');return r}
@@ -26,7 +26,7 @@ Deno.serve(async req=>{
     const page=await allowedPage(link.url,host,resolve);const discoveredLinks=links(page.html,page.url);for(const url of discoveredLinks.slice(0,4))if(sameHost(publicUrl(url).hostname,host))await remember(url,'Organizer event page','organizer-link','',source.id);
     let events=jsonEvents(page.html),textDraft=false;if(!events.length&&key&&settings.allow_ai&&source.allow_ai&&aiPages<2){aiPages++;events=await extractPage(key,page.url)}
     if(!events.length){const fallback=textEventDraft(page.html,page.url,now);if(fallback){events=[fallback];textDraft=true}}
-    for(const schema of events){const item=await normalizeSchema(schema,{id:source.id,name:source.name,url:page.url},now);let record=locate(item.record);if(!record.title||!record.startDate||Date.parse(record.endDate)<+now)continue;
+    for(const schema of events){const item=await normalizeSchema(schema,{id:source.id,name:source.name,url:page.url},now);let record=reuseReviewedVenue(locate(item.record),catalogue);if(!record.title||!record.startDate||Date.parse(record.endDate)<+now)continue;
      if(item.cancelled){const refs=check(await db.from('pc_event_sources').select('event_id').eq('source_id',source.id).eq('external_id',record.id)).data||[];for(const ref of refs){check(await db.from('pc_event_sources').update({status:'cancelled'}).eq('source_id',source.id).eq('external_id',record.id));const remaining=check(await db.from('pc_event_sources').select('event_id').eq('event_id',ref.event_id).eq('status','active')).data||[];if(!remaining.length)check(await db.from('pc_events').update({status:'archived'}).eq('id',ref.event_id).is('owner_id',null))}continue}
      const candidateId=source.id+'-'+record.id;const oldCandidate=check(await db.from('pc_import_candidates').select('status').eq('id',candidateId).maybeSingle()).data;if(oldCandidate?.status==='rejected')continue;
      if(textDraft||record.categoryNeedsReview||!source.autopublish||!validateRecord(record)){if(!oldCandidate){check(await db.from('pc_import_candidates').insert({id:candidateId,source_id:source.id,record,reason:(textDraft?'Text-derived draft: confirm all event facts. ':'')+(item.reason||'New organizer source requires review before publication')}));reviewed++}else if(oldCandidate.status==='pending')check(await db.from('pc_import_candidates').update({record,reason:item.reason||'Confirm extracted event facts',updated_at:now.toISOString()}).eq('id',candidateId).eq('status','pending'));continue}

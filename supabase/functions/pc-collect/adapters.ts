@@ -35,3 +35,15 @@ function tokens(s:string){return new Set(String(s||'').toLowerCase().replace(/[^
 function similarity(a:string,b:string){const x=tokens(a),y=tokens(b);return x.size&&y.size?[...x].filter(t=>y.has(t)).length/new Set([...x,...y]).size:0}
 export function duplicateScore(a:any,b:any){if(a.startDate.slice(0,10)!==b.startDate.slice(0,10))return 0;const title=similarity(a.title,b.title),venue=similarity(a.venueName,b.venueName);if(title<.8||venue<.6)return 0;return .6*title+.25*venue+.15*similarity(a.organizer,b.organizer)}
 export function validateRecord(r:any,now=new Date()){return Boolean(r&&r.title&&r.title.length<=120&&r.description&&r.venueName&&r.address&&Number.isFinite(r.latitude)&&Number.isFinite(r.longitude)&&r.latitude>=6.2&&r.latitude<=6.9&&r.longitude>=2.7&&r.longitude<=4.2&&Number.isFinite(Date.parse(r.startDate))&&Date.parse(r.endDate)>=Date.parse(r.startDate)&&Date.parse(r.endDate)>=+now&&['sourceUrl','registrationUrl','imageUrl'].every(k=>{try{return new URL(r[k]).protocol==='https:'}catch{return false}}))}
+// Reuse only reviewer-confirmed locations, never inferred neighbourhood centroids.
+export function reuseReviewedVenue(record:any,catalogue:{record:any}[]){
+ if(record.latitude!=null&&record.longitude!=null)return record;
+ const key=(v:unknown)=>String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const name=key(record.venueName);if(name.length<6)return record;
+ const matches=catalogue.map(e=>e.record).filter(e=>e.categoryEvidence==='Reviewer confirmed'&&key(e.venueName)===name&&Number.isFinite(e.latitude)&&Number.isFinite(e.longitude)&&e.latitude>=6.2&&e.latitude<=6.9&&e.longitude>=2.7&&e.longitude<=4.2&&e.address);
+ if(!matches.length)return record;
+ const first=matches[0];if(matches.some(e=>Math.abs(e.latitude-first.latitude)>.001||Math.abs(e.longitude-first.longitude)>.001))return record;
+ // A new, different street address may mean the venue moved or has another branch.
+ const address=key(record.address);if(address&&address!=='lagos'&&address!=='lagosnigeria'&&address!==key(first.address))return record;
+ return {...record,address:first.address,area:first.area,latitude:first.latitude,longitude:first.longitude,venueApproximate:true,coordinateSource:first.coordinateSource||first.sourceUrl,venueResolution:'Previously confirmed venue'};
+}
