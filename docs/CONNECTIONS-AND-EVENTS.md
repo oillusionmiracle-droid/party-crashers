@@ -50,7 +50,7 @@ Party Crashers already has a Supabase Edge Function API backed by its own databa
 
 Requests from our app use an explicit origin allowlist; private actions verify Clerk JWTs. This is currently an application API, not a released third-party developer API. Before offering external API keys, add proper rate limits/quotas, versioned URLs, stable pagination, API-key issuance/revocation, usage tracking, documented error contracts and an OpenAPI specification. Do not grant external applications direct service-role access to the database.
 
-An API exposes data; it does not create an event catalogue. Organizers create events on Eventbrite, and Eventbrite exposes records through its API. For Party Crashers the catalogue should combine organizer submissions, authorized feeds/partnerships and permitted organizer-page imports. A collector would extract facts, validate dates and venue, preserve the source link, deduplicate and refresh cancellations. No automatic citywide collection pipeline is deployed yet.
+An API exposes data; it does not create an event catalogue. Organizers create events on Eventbrite, and Eventbrite exposes records through its API. For Party Crashers the catalogue should combine organizer submissions, authorized feeds/partnerships and permitted organizer-page imports. A collector would extract facts, validate dates and venue, preserve the source link, deduplicate and refresh cancellations. Three organizer sources now have scheduled imports; see `NEARBY-AND-IMPORTS.md` for the implemented scope and remaining integrations. This is not citywide or global coverage.
 
 ## Actual event images
 

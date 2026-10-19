@@ -18,3 +18,9 @@ export async function followOrganizer(_id:string,organizerId:string,on:boolean){
 export async function reportEvent(_id:string,eventId:string,reason:string){await api({action:'report',eventId,reason})}
 export async function registrationClick(eventId:string){await api({action:'registration.click',eventId})}
 export async function uploadPoster(_userId:string,file:File){const base64=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('Image could not be read.'));reader.readAsDataURL(file)});return (await api({action:'poster.upload',mime:file.type,base64})).url as string}
+
+export async function feedHealth(){const r=await fetch(databaseUrl+'/functions/v1/pc-api?status=feed',{headers:databaseKey?{apikey:databaseKey}:{}});if(!r.ok)throw new Error('Source status unavailable');return (await r.json()).sources as {name:string;url:string;enabled:boolean;last_success_at:string|null;health:string}[]}
+export async function adminAccess(){return (await api({action:'admin.access'})).allowed as boolean}
+export async function adminQueue(){return api({action:'admin.queue'})}
+export async function reviewCandidate(candidateId:string,decision:string,venue?:Record<string,unknown>){return api({action:'admin.review',candidateId,decision,venue})}
+export async function toggleSource(sourceId:string,enabled:boolean){return api({action:'admin.source',sourceId,enabled})}

@@ -15,6 +15,8 @@ Deno.serve(async req=>{const origin=req.headers.get('Origin')||ORIGIN;if(req.met
  try{
   const u=new URL(req.url);
   if(req.method==='GET'){
+   if(u.searchParams.has('id')){const r=await db.from('pc_events').select('record').eq('status','published').eq('id',text(u.searchParams.get('id'),199,true)).maybeSingle();checked(r);return r.data?json({event:r.data.record},200,origin):json({error:'Event unavailable'},404,origin)}
+   if(u.searchParams.get('status')==='feed'){const r=await db.from('pc_sources').select('name,url,enabled,last_success_at,last_attempt_at,consecutive_failures');checked(r);return json({sources:(r.data||[]).map(s=>({...s,health:!s.enabled?'paused':!s.last_success_at?'awaiting first sync':s.consecutive_failures>0?'degraded':Date.now()-Date.parse(s.last_success_at)>18*3600000?'stale':'healthy'}))},200,origin)}
    const near=u.searchParams.get('lat');
    if(near!==null){const lat=Number(near),lon=Number(u.searchParams.get('lon')),km=Math.min(100,Math.max(1,Number(u.searchParams.get('km')||15)));if(u.searchParams.get('lon')===null||!Number.isFinite(km)||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw new Error('Invalid map coordinates');const r=await db.rpc('pc_nearby_events',{query_lat:lat,query_lon:lon,radius_m:km*1000});checked(r);return json({events:r.data},200,origin)}
    let q=db.from('pc_events').select('record').eq('status','published').gte('record->>endDate',new Date().toISOString()).order('start_date').limit(250);const term=u.searchParams.get('q');if(term)q=q.textSearch('search_document',text(term,200),{type:'websearch',config:'simple'});const area=u.searchParams.get('area');if(area)q=q.eq('record->>area',text(area,100));const r=await q;checked(r);return json({events:(r.data||[]).map(x=>x.record)},200,origin)
@@ -24,6 +26,14 @@ Deno.serve(async req=>{const origin=req.headers.get('Origin')||ORIGIN;if(req.met
   let sub:string;
   try{const {payload}=await jwtVerify(token,jwks,{issuer:ISSUER,algorithms:['RS256'],clockTolerance:5});if(!payload.sub?.startsWith('user_'))throw 0;if(payload.azp&&!TRUSTED.includes(String(payload.azp)))throw 0;sub=payload.sub}catch{return json({error:'Your session could not be verified. Please sign in again.'},401,origin)}
   const raw=await req.text();if(raw.length>7200000)return json({error:'Request is too large'},413,origin);const body=JSON.parse(raw),action=body.action;
+  if(typeof action==='string'&&action.startsWith('admin.')){
+   const admin=await db.from('pc_admins').select('clerk_user_id').eq('clerk_user_id',sub).maybeSingle();const allowed=!admin.error&&Boolean(admin.data);
+   if(action==='admin.access')return json({allowed},200,origin);if(!allowed)return json({error:'Administrator access required'},403,origin);
+   if(action==='admin.queue'){const [sources,candidates]=await Promise.all([db.from('pc_sources').select('*'),db.from('pc_import_candidates').select('*').eq('status','pending').order('updated_at',{ascending:false}).limit(100)]);checked(sources);checked(candidates);return json({sources:sources.data,candidates:candidates.data},200,origin)}
+   if(action==='admin.source'){const r=await db.from('pc_sources').update({enabled:body.enabled===true}).eq('id',text(body.sourceId,100,true));checked(r);return json({ok:true},200,origin)}
+   if(action==='admin.review'){const r=await db.rpc('pc_review_import',{candidate_id:text(body.candidateId,199,true),reviewer:sub,decision:text(body.decision,20,true),venue:body.venue&&typeof body.venue==='object'?body.venue:{}});if(r.error)return json({error:'Review failed. Confirm venue fields, dates and whether this item was already reviewed.'},400,origin);return json({ok:true},200,origin)}
+   return json({error:'Unknown administrator action'},400,origin)
+  }
   if(action==='profile.get'){const r=await db.from('pc_profiles').select('display_name,preferences').eq('clerk_user_id',sub).maybeSingle();checked(r);return json({profile:r.data},200,origin)}
   if(action==='profile.save'){const p=body.preferences;if(!p||!Array.isArray(p.interests)||p.interests.length>30)throw new Error('Invalid preferences');const preferences={interests:p.interests.map((v:unknown)=>text(v,50)),area:text(p.area,100),campus:text(p.campus,100),complete:Boolean(p.complete)};const r=await db.from('pc_profiles').upsert({clerk_user_id:sub,display_name:text(body.name,120),preferences,updated_at:new Date().toISOString()},{onConflict:'clerk_user_id'});checked(r);return json({ok:true},200,origin)}
   if(action==='saved.list'){const r=await db.from('pc_saved_events').select('event_id').eq('clerk_user_id',sub);checked(r);return json({ids:(r.data||[]).map(x=>x.event_id)},200,origin)}
