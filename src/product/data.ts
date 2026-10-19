@@ -25,7 +25,8 @@ export function inFilter(e:EventRecord,filter:string,prefs:Preferences,now=new D
  if(filter==='Free')return e.priceType==='free';
  if(filter==='Nearby')return prefs.area==='Anywhere in Lagos'||e.area===prefs.area||(prefs.area==='Yaba'&&e.area==='Mainland');
  if(filter==='Campus')return e.category==='Campus'||(prefs.campus!=='None'&&e.tags.includes(prefs.campus));
- if(['For You','All'].includes(filter))return true;
+ if(filter==='For You')return !prefs.interests.length||matchesInterests(e,prefs);
+ if(filter==='All')return true;
  return e.category===filter||e.tags.includes(filter);
 }
 // Approximate neighborhood centres are ranking hints, never advertised as venue pins.
@@ -52,8 +53,13 @@ export function distanceKm(a:[number,number],b:[number,number]){const r=Math.PI/
 export function savedGroup(e:EventRecord,now=new Date()){const end=new Date(e.endDate);if(end<now)return 'Past';const days=(new Date(e.startDate).getTime()-now.getTime())/86400000;return days<=7?'This week':'Later'}
 export function hasConflict(a:EventRecord,b:EventRecord){return a.timeConfirmed&&b.timeConfirmed&&new Date(a.startDate)<new Date(b.endDate)&&new Date(b.startDate)<new Date(a.endDate)}
 
-// Backfill legacy festival identities while preserving event-specific posters.
+// Generic festival photos do not represent an individual event.
 export function eventVisual(e:EventRecord):EventRecord{
- if(!e.id.startsWith('import-fringe-')||!e.imageUrl.includes('Lagos-Fringe-Logo-'))return e;
- return {...e,imageUrl:/irie|music|vibes/i.test(e.title)?'https://lagosfringe.com/storage/2025/03/TOB_4074-1024x684.jpg':'https://lagosfringe.com/storage/2025/02/SKY_7289-min-1024x684.jpg',imageLabel:'Previous festival · organizer photo',imageCredit:'Previous Lagos Fringe festival performance photo, courtesy of Lagos Fringe / PawStudios; illustrative, not this show'};
+ if(e.id.startsWith('import-fringe-')&&(e.imageUrl.includes('Lagos-Fringe-Logo-')||e.imageLabel?.startsWith('Previous festival')||e.imageCredit?.startsWith('Previous Lagos Fringe')))
+  return {...e,imageUrl:'',imageLabel:undefined,imageCredit:undefined};
+ return e;
+}
+export function matchesInterests(e:EventRecord,p:Preferences){
+ const topics=new Set([e.category,...e.tags].map(s=>s.trim().toLowerCase()));
+ return p.interests.some(i=>topics.has(i.trim().toLowerCase()));
 }
