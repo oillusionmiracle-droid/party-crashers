@@ -5,7 +5,7 @@ import {gsap} from 'gsap';
 import {locationPhotos} from './locationPhotos';
 import {categories,areas,campuses,interestCrop,areaCrop,campusCrop,type Preferences} from './data';
 type Props={step:string;prefs:Preferences;onChange:(p:Preferences)=>void;onStep:(s:string)=>void;onFinish:()=>void;onBack:()=>void};
-export function CropArt({source,box}:{source:string;box:[number,number,number,number]}){return <svg aria-hidden="true" className="crop-art" viewBox={box.join(' ')}><image href={`/assets/setup/${source}.webp`} width="941" height="1672"/></svg>}
+export function CropArt({source,box}:{source:string;box:[number,number,number,number]}){return <svg aria-hidden="true" className="crop-art" viewBox={box.join(' ')}><image href={`/assets/setup/${source==='campuses'?'campuses-transparent':source}.webp`} width="941" height="1672"/></svg>}
 const fallbackIcons:Record<string,React.ElementType>={Startups:Lightbulb,Design:Code,Education:BookOpen,Community:UsersThree,Ajah:MapPin,Festac:MapPin,Mainland:MapPin};
 export default function Setup({step,prefs,onChange,onStep,onFinish,onBack}:Props){
  const section=useRef<HTMLDivElement>(null);const [other,setOther]=useState(prefs.campus==='Other'?'':prefs.campus);const selected=prefs.interests;

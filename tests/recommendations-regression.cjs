@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+require('esbuild').buildSync({entryPoints:['src/product/data.ts'],outfile:'.sites-runtime/recommendations.cjs',platform:'node',format:'cjs',bundle:true});
+const {rankEvent,initialEvents,defaultPreferences}=require(path.resolve('.sites-runtime/recommendations.cjs'));
+const base={...initialEvents[0],startDate:'2026-11-01T12:00:00Z'},now=Date.parse('2026-10-19');
+const prefs={...defaultPreferences,interests:['music'],area:'Yaba'};
+const local={...base,category:'Music',tags:[],latitude:6.515,longitude:3.375,area:'Yaba'};
+const far={...local,latitude:6.469,longitude:3.565,area:'Ajah'};
+assert(rankEvent(local,prefs,null,now)>rankEvent(far,prefs,null,now));
+assert(rankEvent(far,prefs,[6.469,3.565],now)>rankEvent(local,prefs,[6.469,3.565],now));
+assert(rankEvent(local,prefs,null,now)>rankEvent({...local,category:'Tech'},prefs,null,now));
+assert(Number.isFinite(rankEvent({...local,latitude:null,longitude:null},prefs,null,now)));
+assert.equal(rankEvent({...local,format:'online'},prefs,[6.469,3.565],now),rankEvent({...local,format:'online'},prefs,[6.515,3.375],now));
+console.log('PASS: interest normalization, preferred area, GPS override, missing coordinates and online events.');

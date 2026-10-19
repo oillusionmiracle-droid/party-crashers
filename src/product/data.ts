@@ -1,6 +1,6 @@
 export type ThemeMode='system'|'light'|'dark';
 export type Preferences={interests:string[];area:string;campus:string;complete:boolean};
-export type EventRecord={id:string;title:string;description:string;category:string;tags:string[];startDate:string;endDate:string;timezone:string;format:'physical'|'online'|'hybrid';venueName:string;address:string;area:string;latitude:number|null;longitude:number|null;priceType:'free'|'paid'|'unknown';minPrice:number|null;currency:string;registrationUrl:string;sourceUrl:string;sourceName:string;organizerId:string;organizer:string;imageUrl:string;registrationDeadline:string|null;confidenceScore:number;firstDiscoveredAt:string;lastVerifiedAt:string|null;status:'published'|'draft';ownerId?:string;flyerData?:string;timeConfirmed:boolean;venueApproximate?:boolean;priceNote?:string;endTimeConfirmed?:boolean;imageCredit?:string;coordinateSource?:string;sources?:{name:string;url:string}[]};
+export type EventRecord={id:string;title:string;description:string;category:string;tags:string[];startDate:string;endDate:string;timezone:string;format:'physical'|'online'|'hybrid';venueName:string;address:string;area:string;latitude:number|null;longitude:number|null;priceType:'free'|'paid'|'unknown';minPrice:number|null;currency:string;registrationUrl:string;sourceUrl:string;sourceName:string;organizerId:string;organizer:string;imageUrl:string;registrationDeadline:string|null;confidenceScore:number;firstDiscoveredAt:string;lastVerifiedAt:string|null;status:'published'|'draft';ownerId?:string;flyerData?:string;timeConfirmed:boolean;venueApproximate?:boolean;priceNote?:string;endTimeConfirmed?:boolean;imageCredit?:string;imageLabel?:string;coordinateSource?:string;sources?:{name:string;url:string}[]};
 export const categories=['Tech','Startups','Business','Career','Design','Music','Parties','Gaming','Fashion','Art','Sports','Faith','Education','Food','Campus','Community'];
 export const areas=['Yaba','Ikeja','Surulere','VI','Lekki','Ajah','Ojo','Festac','Mainland','Anywhere in Lagos'];
 export const campuses=['UNILAG','LASU','YABATECH','LASUSTECH','Pan-Atlantic','Other','None'];
@@ -11,7 +11,7 @@ export const initialEvents:EventRecord[]=[
 ];
 export const interestCrop:Record<string,[number,number,number,number]>={Tech:[95,430,180,140],Business:[375,430,210,140],Music:[680,430,190,140],Parties:[100,695,185,142],Career:[390,695,195,142],Campus:[675,700,195,140],Faith:[95,945,190,158],Food:[380,955,210,145],Art:[675,950,190,150],Sports:[90,1220,205,155],Fashion:[385,1225,200,150],Gaming:[675,1220,195,155]};
 export const areaCrop:Record<string,[number,number,number,number]>={Yaba:[110,528,270,163],Ikeja:[540,528,285,163],Surulere:[105,788,300,155],VI:[550,795,280,155],Lekki:[85,1045,330,153],Ojo:[535,1045,290,153],'Anywhere in Lagos':[110,1290,300,145]};
-export const campusCrop:Record<string,[number,number,number,number]>={UNILAG:[105,538,285,170],LASU:[530,540,315,165],YABATECH:[105,800,290,154],LASUSTECH:[530,800,315,154],'Pan-Atlantic':[95,1060,310,135],Other:[575,1060,235,135],None:[110,1295,300,145]};
+export const campusCrop:Record<string,[number,number,number,number]>={UNILAG:[45,520,405,240],LASU:[480,520,450,240],YABATECH:[45,800,415,250],LASUSTECH:[490,800,435,250],'Pan-Atlantic':[45,1085,440,220],Other:[570,1090,320,220],None:[75,1330,425,255]};
 export function readLocal<T>(key:string,fallback:T):T{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch{return fallback}}
 export function writeLocal(key:string,value:unknown){localStorage.setItem(key,JSON.stringify(value))}
 export const dateLabel=(e:EventRecord)=>new Intl.DateTimeFormat('en-NG',{day:'numeric',month:'short',timeZone:'Africa/Lagos'}).format(new Date(e.startDate));
@@ -28,8 +28,32 @@ export function inFilter(e:EventRecord,filter:string,prefs:Preferences,now=new D
  if(['For You','All'].includes(filter))return true;
  return e.category===filter||e.tags.includes(filter);
 }
-export function rankEvent(e:EventRecord,p:Preferences){return (e.area===p.area?3:0)+(p.interests.some(i=>i===e.category||e.tags.includes(i))?5:0)+(e.tags.includes(p.campus)?3:0)}
+// Approximate neighborhood centres are ranking hints, never advertised as venue pins.
+const areaCentres:Record<string,[number,number]>={Yaba:[6.515,3.375],Ikeja:[6.6018,3.3515],Surulere:[6.496,3.354],VI:[6.428,3.421],Lekki:[6.447,3.472],Ajah:[6.469,3.565],Ojo:[6.461,3.183],Festac:[6.469,3.283],Mainland:[6.53,3.35]};
+export function rankEvent(e:EventRecord,p:Preferences,position:[number,number]|null=null,now=Date.now()){
+ const normalized=(s:string)=>s.trim().toLowerCase();
+ const topics=new Set([e.category,...e.tags].map(normalized));
+ const matches=new Set(p.interests.map(normalized).filter(i=>topics.has(i))).size;
+ let score=matches?12+Math.min(matches-1,3)*3:0;
+ if(p.campus!=='None'&&p.campus!=='Other'&&topics.has(normalized(p.campus)))score+=10;
+ const centre=position||areaCentres[p.area];
+ if(e.format!=='online'){
+  if(centre&&Number.isFinite(e.latitude)&&Number.isFinite(e.longitude)){
+   const km=distanceKm(centre,[e.latitude!,e.longitude!]);
+   score+=12*Math.exp(-km/15);
+  }else if(e.area===p.area&&p.area!=='Anywhere in Lagos')score+=8;
+ }
+ const days=Math.max(0,(Date.parse(e.startDate)-now)/86400000);
+ score+=2/(1+days/7);
+ return score;
+}
 export function safeUrl(value:string){try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}}
 export function distanceKm(a:[number,number],b:[number,number]){const r=Math.PI/180,dlat=(b[0]-a[0])*r,dlon=(b[1]-a[1])*r,x=Math.sin(dlat/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dlon/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 export function savedGroup(e:EventRecord,now=new Date()){const end=new Date(e.endDate);if(end<now)return 'Past';const days=(new Date(e.startDate).getTime()-now.getTime())/86400000;return days<=7?'This week':'Later'}
 export function hasConflict(a:EventRecord,b:EventRecord){return a.timeConfirmed&&b.timeConfirmed&&new Date(a.startDate)<new Date(b.endDate)&&new Date(b.startDate)<new Date(a.endDate)}
+
+// Backfill legacy festival identities while preserving event-specific posters.
+export function eventVisual(e:EventRecord):EventRecord{
+ if(!e.id.startsWith('import-fringe-')||!e.imageUrl.includes('Lagos-Fringe-Logo-'))return e;
+ return {...e,imageUrl:/irie|music|vibes/i.test(e.title)?'https://lagosfringe.com/storage/2025/03/TOB_4074-1024x684.jpg':'https://lagosfringe.com/storage/2025/02/SKY_7289-min-1024x684.jpg',imageLabel:'Previous festival · organizer photo',imageCredit:'Previous Lagos Fringe festival performance photo, courtesy of Lagos Fringe / PawStudios; illustrative, not this show'};
+}
