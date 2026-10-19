@@ -24,3 +24,10 @@ export async function adminAccess(){return (await api({action:'admin.access'})).
 export async function adminQueue(){return api({action:'admin.queue'})}
 export async function reviewCandidate(candidateId:string,decision:string,venue?:Record<string,unknown>){return api({action:'admin.review',candidateId,decision,venue})}
 export async function toggleSource(sourceId:string,enabled:boolean){return api({action:'admin.source',sourceId,enabled})}
+
+export async function submitEventLink(url:string,title:string){return api({action:'link.submit',url,title})}
+export async function addWebSource(source:Record<string,unknown>){return api({action:'admin.source.add',...source})}
+export async function reviewDiscoveredLink(linkId:string,decision:string,sourceId?:string){return api({action:'admin.link.review',linkId,decision,sourceId})}
+export async function updateDiscoverySettings(settings:Record<string,boolean>){return api({action:'admin.discovery.settings',...settings})}
+
+export async function updateSourceOptions(sourceId:string,autopublish:boolean,allowAi:boolean){return api({action:'admin.source.options',sourceId,autopublish,allowAi})}

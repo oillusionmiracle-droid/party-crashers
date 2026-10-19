@@ -37,3 +37,7 @@ The Next.js site now runs on Vercel’s Next.js runtime rather than static expor
 ## Remaining integrations
 
 More approved sources, broader venue resolution, owner administrator activation, real-device browser testing, social-account OAuth permissions, embedding matching, flyer vision extraction and out-of-app alert delivery remain separate work. No unrestricted social-media crawler is implemented. Organizer HTML adapters intentionally stop and flag errors if the reviewed programme format changes. Official festival identity artwork is credited as such; it is not described as a poster created for an individual performance.
+
+## Web discovery and flyer reading update
+
+A separate approved-site discovery worker and on-device flyer OCR are now implemented. See `WEB-DISCOVERY-SETUP.md` for current capabilities, Firecrawl secret setup, owner activation and provider limits. Four additional organizer monitors are active; internet-wide search still needs its provider key. This supersedes the earlier statement that flyer extraction and broader website monitoring were wholly future work.

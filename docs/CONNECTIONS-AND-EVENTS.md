@@ -70,3 +70,7 @@ The interest and area illustrations are separate decorative UI assets, not offic
 ## Artwork generation record
 
 Built-in image generation produced transparent 3D miniature illustrations for Ajah (coastal neighbourhood), Festac (estate and festival-inspired monument), and Mainland (danfo, flyover and bridge). The reference was the existing orange/yellow/purple/blue location artwork. All prompts required no text, labels, controls or UI; the illustrations represent districts rather than exact architectural surveys. Assets: `public/assets/locations/ajah.webp`, `festac.webp`, `mainland.webp`. Existing Design/Education/Community/Startups illustrations remain in `public/assets/interests/`.
+
+## Latest collection update
+
+`WEB-DISCOVERY-SETUP.md` documents the deployed generic organizer monitor, JSON-LD/text draft extraction, flyer OCR and source-review controls. Wider Firecrawl search remains unconfigured until its server-side key is supplied. Social-account OAuth is not connected.
