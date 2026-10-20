@@ -1,3 +1,4 @@
+import {SOCIAL_QUERIES,collectX} from './social.ts';
 import {createClient} from 'npm:@supabase/supabase-js@2.99.1';
 import {allowedPage,publicUrl,sameHost} from './network.ts';
 import {jsonEvents,links,normalizeSchema,textEventDraft} from './extract.ts';
@@ -19,6 +20,14 @@ Deno.serve(async req=>{
   const key=Deno.env.get('FIRECRAWL_API_KEY')||'';
   async function remember(url:string,title:string,provider:string,snippet='',sourceId:string|null=null){const u=publicUrl(url);const source=sourceId||sources.find(s=>sameHost(new URL(s.url).hostname,u.hostname))?.id||null;const old=check(await db.from('pc_discovery_links').select('id,status').eq('url',u.href).maybeSingle()).data;if(old){check(await db.from('pc_discovery_links').update({last_seen_at:now.toISOString()}).eq('id',old.id));return}check(await db.from('pc_discovery_links').insert({url:u.href,title:title.slice(0,200),snippet:snippet.slice(0,500),provider,status:source?'approved':'pending',source_id:source}));discovered++}
   if(settings.search_enabled){if(!key)searchState='needs FIRECRAWL_API_KEY';else{try{const rotation=(Math.floor(now.getTime()/21600000)*2)%QUERIES.length;for(let i=0;i<2;i++){const results=await searchWeb(key,QUERIES[(rotation+i)%QUERIES.length]);for(const r of results)await remember(r.url,r.title,'firecrawl-search',r.snippet)}searchState='success'}catch(e){searchState='failed';failures.push(e instanceof Error?e.message:'Search failed')}}}
+  // Indexed social results are leads only. No login-wall scraping or inferred event publication.
+  if(settings.search_enabled&&key){try{const query=SOCIAL_QUERIES[Math.floor(now.getTime()/21600000)%SOCIAL_QUERIES.length];for(const r of await searchWeb(key,query))await remember(r.url,r.title,'indexed-social-search',r.snippet)}catch{failures.push('Indexed social search temporarily unavailable')}}
+  if(Deno.env.get('X_DISCOVERY_ENABLED')==='true'){
+   try{const result=await collectX(db,Deno.env.get('X_BEARER_TOKEN')||'',now);if(result.status.startsWith('needs'))failures.push(result.status);
+    for(const p of result.posts){check(await db.from('pc_social_posts').upsert({platform:'x',...p},{onConflict:'platform,post_id'}));await remember(p.permalink,p.caption.slice(0,160),'x-api',p.caption);for(const url of p.outgoing_urls)await remember(url,p.caption.slice(0,160),'x-api-outgoing',p.caption)}
+    check(await db.from('pc_social_posts').delete().lt('discovered_at',new Date(+now-30*86400000).toISOString()));
+   }catch(e){failures.push(e instanceof Error?e.message:'X discovery unavailable')}
+  }
   const pending=check(await db.from('pc_discovery_links').select('*').in('status',['approved','imported']).order('last_crawled_at',{ascending:true,nullsFirst:true}).limit(8)).data||[];
   const catalogue=check(await db.from('pc_events').select('id,owner_id,status,record').limit(1000)).data||[];let aiPages=0;
   for(const link of pending){if(Date.now()-started>90000){failures.push('Remaining pages deferred to next bounded run');break}const source=sources.find(s=>s.id===link.source_id);if(!source)continue;const host=publicUrl(source.url).hostname;
