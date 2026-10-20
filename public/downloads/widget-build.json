@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0-preview",
+  "sourceCommit": "25ddc421d6affbfcef70bb818f5f1db2857b07ac",
+  "workflowRun": 39398504724,
+  "sha256": "e9917e2df08b5ab5f956dbbb3566b6ee52cf8f312ca2fc9d03413c86e87f67af",
+  "build": "development",
+  "checks": [
+    "unit tests",
+    "Android lint",
+    "assembleDebug"
+  ]
+}

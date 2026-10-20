@@ -14,7 +14,12 @@ Deno.serve(async req=>{
  let sent=0,skipped=0,failed=0;
  try{
   let keys=check(await db.rpc('pc_read_push_keys'));if(!keys){const pair=webpush.generateVAPIDKeys();check(await db.rpc('pc_initialize_push_keys',{pub:pair.publicKey,priv:pair.privateKey}));keys=check(await db.rpc('pc_read_push_keys'));}
-  const body=await req.json().catch(()=>({}));if(body.initializeOnly)return json({ok:true,keysReady:Boolean(keys?.publicKey)});
+  const body=await req.json().catch(()=>({}));if(body.initializeOnly){
+   // Exercise encryption in the actual Edge runtime without sending a notification.
+   const recipient=webpush.generateVAPIDKeys();const auth=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+   const details=webpush.generateRequestDetails({endpoint:'https://fcm.googleapis.com/fcm/send/pc-encryption-self-test',keys:{p256dh:recipient.publicKey,auth}},'{"title":"Encryption self-test"}',{vapidDetails:{subject:'https://party-crashers-seven.vercel.app/privacy/',publicKey:keys.publicKey,privateKey:keys.privateKey},TTL:60,contentEncoding:'aes128gcm'});
+   return json({ok:true,keysReady:Boolean(keys?.publicKey),encryptionReady:details.body.length>0});
+  }
   const jobs=check(await db.from('pc_push_jobs').select('*').eq('status','pending').lte('available_at',now.toISOString()).order('created_at').limit(25))||[];
   const deadline=Date.now()+45000;
   for(const job of jobs){if(Date.now()>deadline)break;

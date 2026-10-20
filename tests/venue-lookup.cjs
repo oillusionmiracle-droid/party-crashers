@@ -1,0 +1,6 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+require('esbuild').buildSync({entryPoints:['supabase/functions/_shared/venues.ts'],outfile:'.sites-runtime/venues.cjs',platform:'node',bundle:true,format:'cjs'});
+const {photonVenue,resolveVenue}=require(path.resolve('.sites-runtime/venues.cjs'));
+const record={venueName:'Test Hall',area:'VI'};const f={geometry:{coordinates:[3.42,6.43]},properties:{name:'Test Hall',osm_key:'amenity',osm_id:1,osm_type:'N',street:'Test Road',city:'Lagos'}};
+assert.equal(photonVenue(record,[f]).latitude,6.43);assert.equal(photonVenue(record,[f]).coordinateSource,'https://www.openstreetmap.org/node/1');assert.equal(photonVenue(record,[{...f,properties:{...f.properties,name:'Another Hall'}}]),null);assert.equal(photonVenue(record,[{...f,geometry:{coordinates:[0,0]}}]),null);assert.equal(photonVenue(record,[f,{...f,geometry:{coordinates:[3.5,6.5]}}]),null);assert.equal(photonVenue(record,[{...f,properties:{...f.properties,osm_key:'place'}}]),null);
+(async()=>{assert.equal((await resolveVenue({}, {...record,latitude:6.43,longitude:3.42})).latitude,6.43);assert.equal((await resolveVenue({}, {...record,format:'online',latitude:6.43,longitude:3.42})).latitude,null);console.log('PASS: exact named venue, Lagos bounds, ambiguous branches, centroid rejection, provenance, existing pins, online exclusion');})();
