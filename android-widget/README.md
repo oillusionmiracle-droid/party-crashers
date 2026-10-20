@@ -9,6 +9,8 @@ Native Android home-screen widgets require an installed Android component. This 
 - Light/dark widget colours follow the system.
 - Profile → Open widget setup passes only area and interest names for confirmation in the companion. Browser authentication is never copied into Android.
 
+Before a local preview build, create `.widget-signing/debug.keystore` with `keytool` (alias `androiddebugkey`, store/key password `android`). This development key must not be used for a production release. CI creates and caches its own development key.
+
 Build: `gradle -p android-widget testDebugUnitTest lintDebug assembleDebug`.
 
 The GitHub Actions `Android event widget` workflow runs these checks and uploads `party-crashers-widget-debug`. The debug APK is for preview installation, not a Play Store production release. A production signing identity, Play listing and device testing are separate release requirements. Debug signing identity is reused via the private repository Actions cache to permit preview updates.
