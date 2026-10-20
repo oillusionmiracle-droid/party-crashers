@@ -1,0 +1,6 @@
+import type {Metadata} from 'next';
+import WidgetSettings from '../../src/product/notifications/WidgetSettings';
+import {defaultPreferences} from '../../src/product/data';
+import '../../src/product/legal.css';
+export const metadata:Metadata={title:'Android home-screen widget',description:'Add matching Lagos events to your Android home screen.'};
+export default function WidgetsPage(){return <main className="legal-page"><header><a href="/#profile">← Back to Party Crashers</a></header><h1>Keep your next plan close.</h1><WidgetSettings prefs={defaultPreferences}/><section><div><h2>Add the widget</h2><ol><li>Download and install the Party Crashers widget companion on your Android phone.</li><li>Open it, choose your area and at least one interest, then tap Add to home screen.</li><li>Confirm the addition in your launcher. You can also long-press your home screen, choose Widgets and find Party Crashers.</li><li>Tap an event to open it in the web app. Tap the widget heading to change its filters.</li></ol><p>This is a preview Android companion. Installation may require allowing this download source in Android settings. Notifications are managed separately in your Party Crashers profile.</p></div></section></main>}

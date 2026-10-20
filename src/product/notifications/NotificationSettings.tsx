@@ -1,0 +1,20 @@
+'use client';
+import React,{useEffect,useState} from 'react';
+import type {Preferences} from '../data';
+import * as service from '../services';
+import {applicationServerKey,currentSubscription,pushSupported,stopPush} from './client';
+export default function NotificationSettings({signedIn,prefs,onSignIn,notify}:{signedIn:boolean;prefs:Preferences;onSignIn:()=>void;notify:(message:string)=>void}){
+ const [supported,setSupported]=useState<boolean|null>(null),[enabled,setEnabled]=useState(false),[busy,setBusy]=useState(false),[blocked,setBlocked]=useState(false);
+ useEffect(()=>{let alive=true;setSupported(pushSupported());setBlocked(typeof Notification!=='undefined'&&Notification.permission==='denied');if(!signedIn){setEnabled(false);return}currentSubscription().then(async sub=>{if(sub){const status=await service.pushStatus(sub.endpoint);if(alive)setEnabled(status.enabled)}}).catch(()=>{});return()=>{alive=false}},[signedIn]);
+ async function enable(){if(!signedIn)return onSignIn();if(!prefs.interests.length)return notify('Choose your interests before enabling event alerts.');setBusy(true);let subscription:PushSubscription|null=null;let newlyCreated=false;try{
+  // The permission request is a direct consequence of this button tap, never page load.
+  const permission=await Notification.requestPermission();if(permission!=='granted'){setBlocked(permission==='denied');return notify(permission==='denied'?'Notifications are blocked. Allow them in this site’s browser settings to continue.':'Notifications remain off. You can enable them later.')}
+  const config=await service.pushConfiguration();if(!config.ready||!config.publicKey)throw new Error('Notification delivery is not available yet.');
+  await navigator.serviceWorker.register('/sw.js',{scope:'/'});const registration=await navigator.serviceWorker.ready;
+  subscription=await registration.pushManager.getSubscription();if(!subscription){subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:applicationServerKey(config.publicKey)});newlyCreated=true}
+  await service.subscribePush(subscription.toJSON(),prefs);setEnabled(true);notify('Event alerts are on for this device.');
+ }catch(error){if(subscription&&newlyCreated)await subscription.unsubscribe().catch(()=>{});notify(error instanceof Error?error.message:'Notifications could not be enabled.')}finally{setBusy(false)}}
+ async function disable(){setBusy(true);try{await stopPush();setEnabled(false);notify('Event alerts are off on this device.')}catch(error){notify(error instanceof Error?error.message:'Could not turn off alerts.')}finally{setBusy(false)}}
+ async function test(){setBusy(true);try{const subscription=await currentSubscription();if(!subscription)throw new Error('Enable alerts on this device first.');await service.testPush(subscription.endpoint);notify('Test notification queued. It may take about a minute.')}catch(error){notify(error instanceof Error?error.message:'Could not queue a test notification.')}finally{setBusy(false)}}
+ return <section className="notification-settings"><h2>Catch the next one.</h2><p>Opt in to new events matching your interests{prefs.area&&prefs.area!=='Anywhere in Lagos'?` in ${prefs.area}`:' across Lagos'}. Alerts follow newly published listings; organizer discovery timing varies.</p>{supported===false?<p className="source-note">Open this app in Chrome or another browser with web push support. On iPhone, add it to your Home Screen first.</p>:<>{blocked&&<p className="source-note">Notifications are blocked in your browser settings.</p>}<button className="outline-action" disabled={busy||supported===null} onClick={enabled?disable:enable}>{busy?'Updating…':enabled?'Turn off notifications':'Enable notifications'}</button>{enabled&&<button className="text-link" onClick={test} disabled={busy}>Send a test notification</button>}</>}<p className="source-note">Optional · You can turn alerts off here or in browser settings. Your precise GPS location is not stored for alerts.</p></section>
+}

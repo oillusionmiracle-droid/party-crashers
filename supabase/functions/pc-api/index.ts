@@ -1,3 +1,4 @@
+import {safePushSubscription,endpointHash} from '../_shared/push.ts';
 import {canonicalCategory,EVENT_CATEGORIES} from '../_shared/taxonomy.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.99.1';
 import { createRemoteJWKSet,jwtVerify } from 'npm:jose@6.1.3';
@@ -17,6 +18,7 @@ Deno.serve(async req=>{const origin=req.headers.get('Origin')||ORIGIN;if(req.met
  try{
   const u=new URL(req.url);
   if(req.method==='GET'){
+   if(u.searchParams.get('status')==='push'){const r=await db.from('pc_push_config').select('public_key').eq('id','main').maybeSingle();checked(r);return json({ready:Boolean(r.data?.public_key),publicKey:r.data?.public_key||null},200,origin)}
    if(u.searchParams.has('id')){const r=await db.from('pc_events').select('record').eq('status','published').eq('id',text(u.searchParams.get('id'),199,true)).maybeSingle();checked(r);return r.data?json({event:r.data.record},200,origin):json({error:'Event unavailable'},404,origin)}
    if(u.searchParams.get('status')==='integrations')return json({organizerMonitoring:true,webSearch:Boolean(Deno.env.get('FIRECRAWL_API_KEY')),flyerReading:'on-device',socialAccounts:false},200,origin);
    if(u.searchParams.get('status')==='feed'){const r=await db.from('pc_sources').select('name,url,enabled,last_success_at,last_attempt_at,consecutive_failures');checked(r);return json({sources:(r.data||[]).map(s=>({...s,health:!s.enabled?'paused':!s.last_success_at?'awaiting first sync':s.consecutive_failures>0?'degraded':Date.now()-Date.parse(s.last_success_at)>18*3600000?'stale':'healthy'}))},200,origin)}
@@ -45,8 +47,30 @@ Deno.serve(async req=>{const origin=req.headers.get('Origin')||ORIGIN;if(req.met
    return json({error:'Unknown administrator action'},400,origin)
   }
   if(action==='link.submit'){const u=sourceUrl(body.url);const quota=await db.rpc('pc_take_quota',{bucket_name:'link:'+sub,max_hits:10,window_seconds:86400});checked(quota);if(!quota.data)return json({error:'You can suggest up to 10 event links per day.'},429,origin);const r=await db.from('pc_discovery_links').upsert({url:u.href,title:text(body.title,200),provider:'community-link',submitted_by:sub,status:'pending'},{onConflict:'url',ignoreDuplicates:true});checked(r);return json({ok:true,message:'Link received for source review. It has not been published.'},200,origin)}
+  if(typeof action==='string'&&action.startsWith('push.')){
+   const endpoint=text(body.endpoint||body.subscription?.endpoint,3000,true);
+   const hash=await endpointHash(endpoint);
+   if(action==='push.unsubscribe'){checked(await db.from('pc_push_subscriptions').delete().eq('endpoint_hash',hash).eq('clerk_user_id',sub));return json({ok:true},200,origin)}
+   if(action==='push.status'){const r=await db.from('pc_push_subscriptions').select('enabled').eq('endpoint_hash',hash).eq('clerk_user_id',sub).maybeSingle();checked(r);return json({enabled:r.data?.enabled===true},200,origin)}
+   const quota=await db.rpc('pc_take_quota',{bucket_name:'push:'+sub,max_hits:10,window_seconds:3600});checked(quota);if(!quota.data)return json({error:'Notification settings limit reached. Try again later.'},429,origin);
+   if(action==='push.subscribe'){
+    if(body.consent!==true)throw new Error('Notification consent is required');
+    const subscription=safePushSubscription(body.subscription);
+    const old=await db.from('pc_push_subscriptions').select('clerk_user_id').eq('endpoint_hash',hash).maybeSingle();checked(old);if(old.data&&old.data.clerk_user_id!==sub)throw new Error('Turn off this device’s previous account alerts before enabling another account');
+    const count=await db.from('pc_push_subscriptions').select('endpoint_hash',{count:'exact',head:true}).eq('clerk_user_id',sub);checked(count);if(!old.data&&Number(count.count)>=5)throw new Error('Up to five devices can receive alerts for this account');
+    const p=body.preferences;if(!p||!Array.isArray(p.interests)||!p.interests.length||p.interests.length>30)throw new Error('Choose interests before enabling event alerts');
+    const preferences={interests:p.interests.map((v:unknown)=>canonicalCategory(v)).filter(Boolean),area:text(p.area,100,true),campus:text(p.campus,100)};if(!preferences.interests.length)throw new Error('Choose valid interests');
+    const ready=await db.from('pc_push_config').select('id').eq('id','main').maybeSingle();checked(ready);if(!ready.data)throw new Error('Notification delivery is not ready');
+    checked(await db.from('pc_push_subscriptions').upsert({endpoint_hash:hash,clerk_user_id:sub,subscription,preferences,enabled:true,consented_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:'endpoint_hash'}));return json({ok:true},200,origin);
+   }
+   if(action==='push.test'){
+    const item=await db.from('pc_push_subscriptions').select('endpoint_hash').eq('endpoint_hash',hash).eq('clerk_user_id',sub).eq('enabled',true).maybeSingle();checked(item);if(!item.data)throw new Error('Enable alerts on this device first');
+    checked(await db.from('pc_push_jobs').insert({endpoint_hash:hash,kind:'test'}));return json({ok:true,queued:true},200,origin);
+   }
+   throw new Error('Unknown push action');
+  }
   if(action==='profile.get'){const r=await db.from('pc_profiles').select('display_name,preferences').eq('clerk_user_id',sub).maybeSingle();checked(r);return json({profile:r.data},200,origin)}
-  if(action==='profile.save'){const p=body.preferences;if(!p||!Array.isArray(p.interests)||p.interests.length>30)throw new Error('Invalid preferences');const preferences={interests:p.interests.map((v:unknown)=>text(v,50)),area:text(p.area,100),campus:text(p.campus,100),complete:Boolean(p.complete)};const r=await db.from('pc_profiles').upsert({clerk_user_id:sub,display_name:text(body.name,120),preferences,updated_at:new Date().toISOString()},{onConflict:'clerk_user_id'});checked(r);return json({ok:true},200,origin)}
+  if(action==='profile.save'){const p=body.preferences;if(!p||!Array.isArray(p.interests)||p.interests.length>30)throw new Error('Invalid preferences');const preferences={interests:p.interests.map((v:unknown)=>text(v,50)),area:text(p.area,100),campus:text(p.campus,100),complete:Boolean(p.complete)};const r=await db.from('pc_profiles').upsert({clerk_user_id:sub,display_name:text(body.name,120),preferences,updated_at:new Date().toISOString()},{onConflict:'clerk_user_id'});checked(r);checked(await db.from('pc_push_subscriptions').update({preferences,updated_at:new Date().toISOString()}).eq('clerk_user_id',sub));return json({ok:true},200,origin)}
   if(action==='saved.list'){const r=await db.from('pc_saved_events').select('event_id').eq('clerk_user_id',sub);checked(r);return json({ids:(r.data||[]).map(x=>x.event_id)},200,origin)}
   if(action==='saved.set'){const eventId=text(body.eventId,200,true);const r=body.on===true?await db.from('pc_saved_events').upsert({clerk_user_id:sub,event_id:eventId},{onConflict:'clerk_user_id,event_id'}):await db.from('pc_saved_events').delete().eq('clerk_user_id',sub).eq('event_id',eventId);checked(r);return json({ok:true},200,origin)}
   if(action==='follow.list'){const r=await db.from('pc_follows').select('organizer_id').eq('clerk_user_id',sub);checked(r);return json({ids:(r.data||[]).map(x=>x.organizer_id)},200,origin)}

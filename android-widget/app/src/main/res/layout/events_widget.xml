@@ -1,0 +1,10 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@android:id/background" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/widget_background">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+  <ImageView android:layout_width="28dp" android:layout_height="28dp" android:src="@drawable/app_icon" android:contentDescription="Party Crashers"/>
+  <TextView android:id="@+id/widget_heading" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="Your next plans" android:textStyle="bold" android:textSize="18sp" android:textColor="@color/widget_text"/>
+  <TextView android:id="@+id/widget_refresh" android:layout_width="wrap_content" android:layout_height="48dp" android:gravity="center" android:paddingHorizontal="8dp" android:text="Refresh" android:textColor="@color/widget_accent" android:textSize="12sp" android:contentDescription="Refresh event widget"/>
+ </LinearLayout>
+ <TextView android:id="@+id/widget_area" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Choose your area and interests" android:textSize="11sp" android:textColor="@color/widget_muted"/>
+ <LinearLayout android:id="@+id/widget_rows" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical"/>
+ <TextView android:id="@+id/widget_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="6dp" android:text="Tap to set up" android:textSize="10sp" android:textColor="@color/widget_muted"/>
+</LinearLayout>

@@ -1,0 +1,4 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/event_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingVertical="8dp">
+ <TextView android:id="@+id/event_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textStyle="bold" android:textSize="14sp" android:textColor="@color/widget_text"/>
+ <TextView android:id="@+id/event_meta" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textSize="11sp" android:textColor="@color/widget_muted"/>
+</LinearLayout>

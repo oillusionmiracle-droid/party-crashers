@@ -31,3 +31,9 @@ export async function reviewDiscoveredLink(linkId:string,decision:string,sourceI
 export async function updateDiscoverySettings(settings:Record<string,boolean>){return api({action:'admin.discovery.settings',...settings})}
 
 export async function updateSourceOptions(sourceId:string,autopublish:boolean,allowAi:boolean){return api({action:'admin.source.options',sourceId,autopublish,allowAi})}
+
+export async function pushConfiguration(){const r=await fetch(databaseUrl+'/functions/v1/pc-api?status=push',{headers:databaseKey?{apikey:databaseKey}:{}});if(!r.ok)throw new Error('Notification service unavailable');return r.json() as Promise<{ready:boolean;publicKey:string|null}>}
+export async function subscribePush(subscription:PushSubscriptionJSON,preferences:Preferences){return api({action:'push.subscribe',subscription,preferences,consent:true})}
+export async function unsubscribePush(endpoint:string){return api({action:'push.unsubscribe',endpoint})}
+export async function pushStatus(endpoint:string){return api({action:'push.status',endpoint}) as Promise<{enabled:boolean}>}
+export async function testPush(endpoint:string){return api({action:'push.test',endpoint})}
