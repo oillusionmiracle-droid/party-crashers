@@ -1,8 +1,8 @@
 import {publicUrl,limitedText} from './network.ts';
 export const SOCIAL_QUERIES=[
-'site:instagram.com/p/ Lagos (event OR concert OR tickets OR party) (2026 OR upcoming)',
-'site:facebook.com Lagos (event OR concert OR tickets) (2026 OR upcoming)',
-'(site:x.com OR site:twitter.com) Lagos (event OR concert OR tickets) (2026 OR upcoming)'
+'site:instagram.com/p/ Lagos (event OR concert OR tickets OR party) upcoming',
+'site:facebook.com Lagos (event OR concert OR tickets) upcoming',
+'(site:x.com OR site:twitter.com) Lagos (event OR concert OR tickets) upcoming'
 ];
 export const X_QUERIES=[
 '(Lagos OR Lekki OR Ikeja OR Yaba) (tickets OR concert OR festival OR meetup) -is:retweet lang:en',

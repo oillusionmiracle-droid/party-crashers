@@ -17,12 +17,13 @@ const pin = '801,1030 840,1030 842,1081 818,1108 795,1081';
 
 export function Artwork({ screen }) {
   const uid = useId().replaceAll(':', '');
+  if (screen.artLayout === 'scene') return <div className="artwork scene-artwork" aria-hidden="true"><img src={screen.image} alt="" decoding="async" /></div>;
   const regions = screen.choreography === 'worlds'
     ? worlds.map((points, i) => ({ points, type: 'world', i }))
     : screen.choreography === 'entry' ? [{ points: phone, type: 'phone', i: 0 }]
     : screen.choreography === 'host' ? [{ points: poster, type: 'poster', i: 0 }, { points: pin, type: 'pin', i: 1 }] : [];
   return <div className="artwork" aria-hidden="true">
-    <svg className="illustration" viewBox="0 0 941 1672" preserveAspectRatio="xMidYMid slice">
+    <svg className="illustration" viewBox={screen.artViewBox || "0 360 941 1080"} preserveAspectRatio="xMidYMid slice">
       <defs>
         <mask id={`${uid}-base`} maskUnits="userSpaceOnUse" x="0" y="0" width="941" height="1672">
           <rect width="941" height="1672" fill="white" />
