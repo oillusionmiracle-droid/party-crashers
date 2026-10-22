@@ -16,6 +16,8 @@ export const campusCrop:Record<string,[number,number,number,number]>={UNILAG:[45
 export function readLocal<T>(key:string,fallback:T):T{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch{return fallback}}
 export function writeLocal(key:string,value:unknown){localStorage.setItem(key,JSON.stringify(value))}
 export const dateLabel=(e:EventRecord)=>new Intl.DateTimeFormat('en-NG',{day:'numeric',month:'short',timeZone:'Africa/Lagos'}).format(new Date(e.startDate));
+export const fullDateLabel=(e:EventRecord)=>new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date(e.startDate));
+export function eventTitleNote(e:EventRecord){return /^(today|tomorrow|tonight|yesterday|this weekend)$/i.test(e.title.trim())?`“${e.title}” is the event’s name. This showing is on ${fullDateLabel(e)}${e.timeConfirmed?` at ${timeLabel(e)} WAT`:''}.`:''}
 export const timeLabel=(e:EventRecord)=>e.timeConfirmed?new Intl.DateTimeFormat('en-NG',{hour:'numeric',minute:'2-digit',timeZone:'Africa/Lagos'}).format(new Date(e.startDate)):'Schedule on organizer site';
 export const priceLabel=(e:EventRecord)=>e.priceNote|| (e.priceType==='free'?'Free':e.minPrice!=null?new Intl.NumberFormat('en-NG',{style:'currency',currency:e.currency,maximumFractionDigits:0}).format(e.minPrice):'Price on organizer site');
 export function inFilter(e:EventRecord,filter:string,prefs:Preferences,now=new Date()):boolean{
@@ -64,3 +66,4 @@ export function matchesInterests(e:EventRecord,p:Preferences){
  const topics=new Set([e.category,...e.tags].map(s=>s.trim().toLowerCase()));
  return p.interests.some(i=>topics.has(i.trim().toLowerCase()));
 }
+
