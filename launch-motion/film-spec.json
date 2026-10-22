@@ -1,0 +1,38 @@
+{
+  "title": "What’s The Plan? — Party Crashers",
+  "brand": "Party Crashers",
+  "w": 1920,
+  "h": 1080,
+  "fps": 60,
+  "duration": 30,
+  "bpm": 120,
+  "palette": {
+    "cream": "#F3EFE5",
+    "ink": "#171713",
+    "orange": "#F34B25",
+    "lime": "#E0EB68",
+    "muted": "#938F82"
+  },
+  "url": "party-crashers-seven.vercel.app",
+  "sound": "assets/soundtrack.m4a",
+  "engine": "nexu-io/motion-anything MAVideo.VideoComp",
+  "render": "HTML/canvas composition → seekable frames → HyperFrames/WebCodecs/FFmpeg final render",
+  "accuracy_notes": [
+    "Browsing does not require sign-in.",
+    "Nearby uses location only when the user chooses it; area selection works without precise location.",
+    "Map pins may be approximate.",
+    "Registration continues on the organizer or ticketing website.",
+    "Flyer upload uses OCR to help populate a draft; users review and confirm the event information.",
+    "Notifications are optional and depend on browser support and permission."
+  ],
+  "scenes": [
+    {"id":"hook","start":0,"end":3.2,"name":"What’s the plan?","lines":["WHAT’S","THE PLAN?"],"note":"The Lagos group-chat question."},
+    {"id":"vibe","start":3.2,"end":6.0,"name":"Lagos has plans","lines":["LAGOS","HAS PLANS."],"categories":["TECH","MUSIC","ART","CAMPUS","BUSINESS","PARTIES"]},
+    {"id":"discover","start":6.0,"end":11.0,"name":"Find yours","lines":["YOUR KIND","OF PLAN."],"body":"Interests. Area. Campus. One feed.","screen":"07-discover.webp","search":"14-search-results.webp"},
+    {"id":"map","start":11.0,"end":15.2,"name":"Around you","lines":["AROUND","YOU."],"body":"Use your area. Or choose nearby.","screen":"08-map.webp"},
+    {"id":"details","start":15.2,"end":20.5,"name":"Know before you go","lines":["CHECK IT","BEFORE YOU GO."],"body":"Date. Time. Venue. Price. Then decide.","screen":"16-event-details-viewport.webp","facts":["Date & time","Venue & price","Register with organiser"]},
+    {"id":"host","start":20.5,"end":24.4,"name":"Post yours free","lines":["GOT AN EVENT?","PUT IT ON."],"body":"Post your event. Free.","screen":"09-post-event.webp","choices":["Start with a flyer","Or create manually"]},
+    {"id":"outro","start":24.4,"end":30,"name":"Find the ones that are yours","lines":["Lagos has plans.","Find the ones that are yours."],"cta":"FIND YOUR NEXT PLAN"}
+  ],
+  "assets": ["logo.webp","07-discover.webp","08-map.webp","14-search-results.webp","16-event-details-viewport.webp","09-post-event.webp","trivia.webp","moonshot.webp","wordmark.webp"]
+}
